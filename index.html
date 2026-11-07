@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a1626">
+<meta name="description" content="Family Ludo with no ads and no tracking">
+<title>Ludo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #0a1626; overflow: hidden; overscroll-behavior: none; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #0a1626; }
+  #splash {
+    position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    background: radial-gradient(120% 80% at 50% 0%, #14304f, #0a1626 70%); color: #f4f7fb;
+    font-family: system-ui, -apple-system, 'Noto Sans Bengali', sans-serif; text-align: center; padding: 16px;
+    transition: opacity .35s ease;
+  }
+  #splash.gone { opacity: 0; pointer-events: none; }
+  #splash img { width: 112px; height: 112px; filter: drop-shadow(0 12px 28px rgba(0,0,0,.45)); }
+  .dots { display: flex; gap: 10px; height: 14px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; animation: b 1s ease-in-out infinite; }
+  .dots i:nth-child(1) { background: #e2453c; } .dots i:nth-child(2) { background: #23a455; animation-delay: .12s; }
+  .dots i:nth-child(3) { background: #f4b90e; animation-delay: .24s; } .dots i:nth-child(4) { background: #2c79de; animation-delay: .36s; }
+  @keyframes b { 0%, 100% { transform: translateY(0); opacity: .5; } 50% { transform: translateY(-8px); opacity: 1; } }
+  #msg { font-size: 19px; line-height: 1.45; max-width: 320px; margin: 0; min-height: 28px; color: #c9d5e4; }
+  .btn { font: inherit; font-size: 19px; font-weight: 700; border: 0; border-radius: 16px; min-height: 56px; padding: 0 26px; cursor: pointer;
+         background: linear-gradient(180deg, #ffd955, #f2b705); color: #3a2a00; box-shadow: 0 5px 0 #b98700; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b98700; }
+  [hidden] { display: none !important; }
+  #install {
+    position: fixed; z-index: 3; left: 16px; top: calc(env(safe-area-inset-top, 0px) + 14px); min-height: 44px; padding: 0 16px; font-size: 16px;
+    border-radius: 14px; box-shadow: 0 3px 0 #b98700, 0 8px 18px rgba(0,0,0,.35);
+  }
+</style>
+</head>
+<body>
+<iframe id="game" title="Ludo" allow="autoplay; clipboard-write; screen-wake-lock"></iframe>
+
+<div id="splash">
+  <img src="icon-512.png" alt="">
+  <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+  <p id="msg"></p>
+  <button class="btn" id="retry" hidden>Try again · আবার চেষ্টা করুন</button>
+</div>
+<button class="btn" id="install" hidden>Install app · অ্যাপ ইনস্টল</button>
+
+<script>
+'use strict';
+/* ====== SET THIS: the /exec URL of your deployed Apps Script web app ====== */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPEHCbR_M0pfI6fvLQAJDRlojuQyYXB74Xb61PTMDI9fVBljaoyO0f-2Mrj6sSgv_c/exec';
+/* ========================================================================= */
+
+const $ = id => document.getElementById(id);
+const frame = $('game'), splash = $('splash'), msg = $('msg'), retry = $('retry'), dots = $('dots');
+let ready = false, slowT = null, screenId = 'scrHome';
+
+function showSplash(text, canRetry) {
+  splash.classList.remove('gone');
+  msg.textContent = text || '';
+  retry.hidden = !canRetry;
+  dots.hidden = !!canRetry;
+}
+function hideSplash() { splash.classList.add('gone'); }
+
+// A shared room link (…/ludo/?room=ABCD) opens straight into that room.
+const room = (new URLSearchParams(location.search).get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+if (room) history.replaceState(null, '', location.pathname);
+
+function load() {
+  ready = false; clearTimeout(slowT);
+  if (!/^https:\/\/script\.google\.com\//.test(GAS_URL) && !/^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(GAS_URL)) {
+    showSplash('Set GAS_URL in index.html to your web app /exec address.', false); dots.hidden = true; return;
+  }
+  if (!navigator.onLine) { showSplash('No internet connection · ইন্টারনেট সংযোগ নেই', true); return; }
+  showSplash('', false);
+  frame.src = GAS_URL + (room ? (GAS_URL.indexOf('?') < 0 ? '?' : '&') + 'room=' + room : '');
+  slowT = setTimeout(() => { if (!ready) showSplash('Slow connection, please wait… · সংযোগ ধীর, অপেক্ষা করুন…', true); }, 20000);
+}
+// Fallback in case the ready message never arrives (e.g. an older Index.html)
+frame.addEventListener('load', () => { if (frame.src) setTimeout(() => { if (!ready && navigator.onLine) { ready = true; clearTimeout(slowT); hideSplash(); } }, 7000); });
+retry.addEventListener('click', load);
+window.addEventListener('online', () => { if (!ready) load(); });
+
+/* ---- messages from the game (it runs in nested Google iframes) ---- */
+function fromGame(src) {
+  try { let w = src; for (let i = 0; i < 6 && w && w !== window; i++) { if (w === frame.contentWindow) return true; w = w.parent; } } catch (e) {}
+  return false;
+}
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (!d || d.ludo !== 1 || !fromGame(e.source)) return;
+  if (d.t === 'ready') { ready = true; clearTimeout(slowT); setTimeout(hideSplash, 150); }
+  else if (d.t === 'screen' && typeof d.id === 'string') { screenId = d.id; syncWake(); syncInstall(); }
+  else if (d.t === 'vibrate') {
+    const p = Array.isArray(d.p) ? d.p : [d.p];
+    if (p.length <= 10 && p.every(n => typeof n === 'number' && n >= 0 && n <= 1000)) { try { navigator.vibrate && navigator.vibrate(p); } catch (err) {} }
+  }
+});
+
+/* ---- keep the screen on during a game ---- */
+let wake = null;
+async function syncWake() {
+  const want = screenId === 'scrGame' && !document.hidden;
+  try {
+    if (want && !wake && 'wakeLock' in navigator) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
+    else if (!want && wake) { await wake.release(); wake = null; }
+  } catch (e) { wake = null; }
+}
+document.addEventListener('visibilitychange', syncWake);
+
+/* ---- "Install app" button when opened in Chrome ---- */
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+function syncInstall() { $('install').hidden = !(installEvt && !standalone() && screenId === 'scrHome'); }
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; syncInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; syncInstall(); });
+$('install').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  try { await installEvt.userChoice; } catch (e) {}
+  installEvt = null; syncInstall();
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+load();
+</script>
+</body>
+</html>
