@@ -1,27 +1,21 @@
-# Ludo app shell
+# Ludo
 
-These files turn the Apps Script Ludo game into an installable Android app (PWA).
-The game itself still runs from Apps Script. This folder only provides the icon,
-full-screen window, splash screen, offline message, back-button support, screen
-wake lock and vibration.
+Family Ludo with no ads and no tracking. The game runs entirely on the phone;
+Google Apps Script is used only for online rooms.
 
-## Setup
+## Files
 
-1. In `index.html`, set `GAS_URL` to the web app's `/exec` address.
-2. Upload every file in this folder to a free static host with HTTPS, for example
-   GitHub Pages (new public repo, Add file > Upload files, then
-   Settings > Pages > Deploy from branch `main`, folder `/root`).
-3. In `Code.gs`, set `PUBLIC_URL` to the address of this site
-   (for example `https://yourname.github.io/ludo/`) and redeploy the web app
-   as a new version. WhatsApp room links will then open in the installed app.
-
-## Install on a phone
-
-Open the site in Chrome, then tap **Install app** (top-left of the home screen)
-or Chrome menu > **Add to Home screen** > **Install**.
+- `index.html` – the game. Set `API_URL` near the top to the Apps Script `/exec` URL.
+- `engine.js` – the rules. Must match `LudoEngine()` in `Code.gs`.
+- `sw.js` – stores the app on the phone so it opens instantly and works offline.
+- `manifest.webmanifest`, `icon-*.png` – app name and icons for installing.
+- `fonts/` – Baloo Da 2 (SIL Open Font License, see `fonts/OFL.txt`).
 
 ## Updating
 
-Changes to `Code.gs` / `Index.html` reach phones as soon as you redeploy the
-Apps Script version. Changes to this folder need a new upload; if you change
-`sw.js`, bump `CACHE` (for example `ludo-shell-v2`).
+Upload changed files to this repository. Phones get them on the second launch after
+the upload (the first launch downloads them in the background). If you change the
+list of files, also raise `CACHE` in `sw.js` (for example `ludo-v3`).
+
+If you change the rules, change `engine.js` and `Code.gs` together and raise
+`VERSION` in both, then redeploy the Apps Script web app as a new version.
